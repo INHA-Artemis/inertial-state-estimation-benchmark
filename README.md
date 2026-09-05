@@ -9,7 +9,6 @@
 3. 회전 운동이 커질 때 InEKF의 특성이 실제 오차에 어떻게 나타나는지 확인한다.
 4. 테스트 시점에는 IMU만 사용하면서, 이전 데이터로 학습한 속도 정보가 dead reckoning을 얼마나 개선하는지 확인한다.
 
-필터 코드의 기반은 팀원이 정리한 [State_Estimation](https://github.com/andyjaehun/State_Estimation)입니다. 이 저장소에서는 그 구조에 공통 API, 실험 실행기, CF231 학습 코드, 평가 결과와 보고서를 추가했습니다.
 
 ## 1. 상태와 입출력
 
@@ -268,11 +267,3 @@ CF231 학습 실험은 `summary.json`, `trajectories.npz`, `small_tcn.pt`, `traj
 | CF231 | Small TCN + InEKF | 2.61 m | **SO(3) 1.80°** | Small TCN보다 위치는 약간 나빠지지만 자세가 개선됨 |
 
 전체 수치와 그래프는 [RESULTS.md](RESULTS.md), 각 실험의 설정은 [EXPERIMENTS.md](EXPERIMENTS.md), 연구 과정과 해석은 [보고서](reports/KRISO_STATE_ESTIMATION_REPORT.md)에서 확인할 수 있습니다.
-
-## 11. 결과를 해석할 때 주의할 점
-
-- IMU-only에서 InEKF를 쓴다고 해서 bias와 위치 drift가 자동으로 제거되지는 않습니다. measurement update가 없으면 nominal IMU 적분 결과는 EKF와 거의 같습니다.
-- EuRoC 2 Hz 결과는 실제 GPS 결과로 표기하면 안 됩니다.
-- Pohang 코드는 `baseline.txt`를 위치 update와 오차 계산에 동시에 사용합니다. 현재 위치 수치는 독립적인 성능 평가로 사용하기 어렵습니다.
-- i2Nav, Pohang, UrbanNav 종합 표의 수치는 8월 4일 발표자료에 남아 있던 값입니다. 이번에 같은 설정으로 다시 실행한 결과가 아니므로 현재 코드의 최종 성능으로 인용하지 않습니다.
-- 합성 회전 실험에서는 회전량이 커질수록 InEKF가 EKF보다 더 좋아지는 경향이 나타나지 않았습니다. 필터 차이를 보려면 회전량뿐 아니라 초기 오차, update 주기, measurement model과 consistency를 함께 확인해야 합니다.

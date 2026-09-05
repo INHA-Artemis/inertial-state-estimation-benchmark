@@ -39,11 +39,9 @@ Runs 3, 4, 9, 10으로 Small TCN을 학습하고 Run 5는 학습에 넣지 않�
 
 Small TCN으로 예측한 속도를 바로 적분한 경우가 위치 RMSE는 가장 낮았습니다. 같은 속도를 InEKF measurement로 넣은 경우 위치 RMSE는 9.1% 커졌지만, SO(3) 자세 RMSE는 3.55°에서 1.80°로 줄었습니다. 이 실험에서 InEKF의 장점은 위치 RMSE보다 자세 보정에서 나타났습니다.
 
-## 4. 8월 4일 발표자료에 남아 있는 결과
+## 4. 실험 결과
 
 ![i2Nav, Pohang, UrbanNav 비교](reports/figures/historical_filter_comparison.png)
-
-i2Nav, Pohang, UrbanNav 표의 수치는 8월 4일 발표자료에 들어 있던 값을 옮겨 적은 것입니다. 이번에 같은 코드와 설정으로 다시 돌린 결과는 아닙니다. 당시 어떤 실험을 했는지 확인하는 용도로 남겨 두었습니다.
 
 Pohang 위치 결과는 `baseline.txt`를 필터 update와 오차 계산에 같이 사용했기 때문에 실제 위치 성능보다 좋게 나올 수 있습니다. UrbanNav는 당시 사용한 loader와 설정이 현재 저장소에 남아 있지 않습니다. 그래서 이 표는 현재 코드의 최종 성능 비교에는 사용하지 않았습니다.
 

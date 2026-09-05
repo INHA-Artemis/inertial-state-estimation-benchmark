@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>15차원 관성 상태추정 구현</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script>
+    window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, svg: { fontCache: 'global' } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <p class="eyebrow">15차원 관성 상태추정</p>
+      <h1>필터 이론과 구현</h1>
+      <p class="lead">
+        이 문서는 EKF, UKF, PF, ESKF, InEKF를 구현할 때 어떤 state를 쓰고, 어떤 순서로 predict/update를 구성하며,
+        특히 InEKF에서 error와 Jacobian을 어떻게 정의해야 하는지 설명합니다.
+      </p>
+      <nav class="top-nav" aria-label="Documentation navigation">
+        <a href="#state">상태 정의</a>
+        <a href="#motion">운동 모델</a>
+        <a href="#filter-guideline">필터별 구조</a>
+        <a href="#inekf-guideline">InEKF</a>
+        <a href="#datasets">데이터 loader</a>
+        <a href="#measurement">측정 update</a>
+        <a href="#outputs">실행 결과</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="overview">
+      <h2>문서 범위</h2>
+      <p>
+        같은 관성 상태추정 문제를 각 필터에서 어떻게 구현했는지 설명합니다.
+        EKF, UKF, PF, ESKF는 전체 계산 흐름을 비교하고, InEKF는 invariant error, Lie algebra correction, analytic Jacobian을 조금 더 자세히 다룹니다.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <h3>공통 입력</h3>
+          <p>IMU control input은 다음 순서로 통일합니다.</p>
+          <pre><code>control = [ax, ay, az, gx, gy, gz]</code></pre>
+        </div>
+        <div class="card">
+          <h3>공통 출력</h3>
+          <p>모든 필터는 외부 비교용으로 6D pose를 반환합니다.</p>
+          <pre><code>estimate_pose() -> [px, py, pz, roll, pitch, yaw]</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="state">
+      <h2>상태 정의</h2>
+      <p>공통 nominal state는 position, velocity, attitude, gyro bias, accelerometer bias로 구성됩니다.</p>
+      <div class="eq">$$x = [p,\ v,\ R/q,\ b_g,\ b_a]$$</div>
+      <ul>
+        <li>$p \in \mathbb{R}^3$: position</li>
+        <li>$v \in \mathbb{R}^3$: velocity</li>
+        <li>$R \in SO(3)$ 또는 unit quaternion $q$: attitude</li>
+        <li>$b_g \in \mathbb{R}^3$: gyroscope bias</li>
+        <li>$b_a \in \mathbb{R}^3$: accelerometer bias</li>
+      </ul>
+      <p>ESKF, UKF, PF, InEKF 계열에서 attitude uncertainty는 3D local rotation error로 표현합니다.</p>
+      <div class="eq">$$\delta x = [\delta\theta,\ \delta v,\ \delta p,\ \delta b_g,\ \delta b_a]$$</div>
+      <div class="note">
+        Quaternion EKF는 quaternion 4성분을 Kalman state에 직접 포함하므로 내부적으로는 16D additive state입니다.
+        반면 Quaternion UKF/PF는 quaternion을 nominal attitude로 저장하고, covariance 또는 particle perturbation은 15D local tangent error를 사용합니다.
+      </div>
+    </section>
+
+    <section id="motion">
+      <h2>IMU 운동 모델</h2>
+      <p>IMU predict 단계에서는 bias를 제거한 angular velocity와 acceleration을 사용합니다.</p>
+      <div class="eq">$$\omega = \omega_{imu} - b_g, \qquad a = a_{imu} - b_a$$</div>
+      <p>기본 propagation은 다음과 같습니다.</p>
+      <div class="eq">
+        $$R_{k+1} = R_k \exp(\omega\Delta t)$$
+        $$a_{world} = R_k a + g$$
+        $$v_{k+1} = v_k + a_{world}\Delta t$$
+        $$p_{k+1} = p_k + v_k\Delta t + \frac{1}{2}a_{world}\Delta t^2$$
+      </div>
+      <p>Quaternion 기반 필터에서는 같은 회전 increment를 quaternion exponential로 적용합니다.</p>
+      <div class="eq">$$q_{k+1} = q_k \otimes \operatorname{Exp}_q(\omega\Delta t)$$</div>
+    </section>
+
+    <section id="filter-guideline">
+      <h2>필터별 구현 구조</h2>
+      <p>
+        모든 필터는 같은 IMU input과 같은 position measurement를 받지만, attitude와 uncertainty를 다루는 방식이 다릅니다.
+        아래 표는 각 필터를 구현할 때 핵심적으로 확인해야 하는 부분입니다.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>필터</th>
+              <th>구현할 때 확인할 부분</th>
+              <th>자세 처리</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Quaternion EKF</td>
+              <td>State vector에 quaternion 4성분을 직접 넣고, predict/update 후 unit norm constraint를 유지하기 위해 normalize합니다.</td>
+              <td>Additive quaternion state, internal 16D</td>
+            </tr>
+            <tr>
+              <td>Quaternion UKF</td>
+              <td>15D local tangent error에서 sigma point를 만들고, attitude sigma point만 quaternion exponential로 nominal quaternion에 적용합니다.</td>
+              <td>$q_i = q \otimes Exp_q(\delta\theta_i)$</td>
+            </tr>
+            <tr>
+              <td>Quaternion PF</td>
+              <td>Particle별로 $p, v, q, b_g, b_a$를 유지하고, IMU propagation은 batch로 처리합니다. Measurement update는 likelihood로 particle weight를 갱신합니다.</td>
+              <td>Particle별 unit quaternion, weighted quaternion mean</td>
+            </tr>
+            <tr>
+              <td>Rotation ESKF</td>
+              <td>Nominal state는 nonlinear하게 propagation하고, Kalman filter는 small error state를 추정합니다. Update 후 error를 nominal state에 injection합니다.</td>
+              <td>$R \leftarrow R\exp(\delta\theta)$</td>
+            </tr>
+            <tr>
+              <td>InEKF</td>
+              <td>Rotation, velocity, position을 하나의 Lie group state로 묶고, error를 group perturbation으로 정의합니다. Jacobian은 이 invariant error 정의와 일관되게 구성해야 합니다.</td>
+              <td>$X \leftarrow X\operatorname{Exp}(\delta\xi)$</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>공통 predict와 update 순서</h3>
+      <div class="flow">
+        <div class="flow-step"><strong>1. Bias removal</strong><br>$\omega = \omega_{imu}-b_g$, $a=a_{imu}-b_a$</div>
+        <div class="flow-step"><strong>2. Nominal propagation</strong><br>Update $R/q$, $v$, $p$ with IMU motion model</div>
+        <div class="flow-step"><strong>3. Uncertainty propagation</strong><br>EKF/ESKF/InEKF: Jacobian, UKF: sigma covariance, PF: particle spread</div>
+        <div class="flow-step"><strong>4. Measurement update</strong><br>Position residual or likelihood updates state belief</div>
+      </div>
+
+      <h3>필터별 설명 범위</h3>
+      <p>
+        EKF, UKF, PF, ESKF는 핵심 구현 구조만 설명하고 InEKF는 더 자세히 다룹니다.
+        InEKF에서는 error를 어떤 좌표계에서 정의하는지, correction을 어떻게 group에 적용하는지, 그리고 그 정의와 맞는 Jacobian을 어떻게 구성하는지가 성능과 일관성의 핵심입니다.
+      </p>
+    </section>
+
+    <section id="inekf-guideline">
+      <h2>InEKF의 error, correction, Jacobian</h2>
+      <p>
+        InEKF의 핵심은 단순히 rotation을 matrix로 저장하는 것이 아닙니다. 중요한 것은
+        <strong>nominal state를 Lie group 위에서 propagation</strong>하고,
+        <strong>error state를 Lie algebra에서 정의</strong>한 뒤,
+        <strong>그 error 정의와 일관된 Jacobian</strong>을 쓰는 것입니다.
+      </p>
+
+      <h3>1. Lie group 상태 정의</h3>
+      <p>먼저 rotation, velocity, position을 하나의 matrix state로 묶습니다.</p>
+      <div class="eq">
+        $$X =
+        \begin{bmatrix}
+        R & v & p \\
+        0 & 1 & 0 \\
+        0 & 0 & 1
+        \end{bmatrix},\qquad
+        x = [X,\ b_g,\ b_a]$$
+      </div>
+      <p>
+        여기서 $R, v, p$는 따로따로 보관할 수도 있지만, InEKF에서는 이들을 $SE_2(3)$ 형태의 group state로 보고 propagation과 correction을 구성합니다.
+      </p>
+
+      <h3>2. Invariant error 정의</h3>
+      <p>
+        현재 구현은 right perturbation convention을 사용합니다. 즉 error는 nominal state 오른쪽에 곱해지는 작은 Lie algebra vector입니다.
+      </p>
+      <div class="eq">
+        $$X^+ = X\operatorname{Exp}(\delta\xi),\qquad
+        \delta x = [\delta\theta,\ \delta v,\ \delta p,\ \delta b_g,\ \delta b_a]$$
+      </div>
+      <p>이 정의를 정하면 update에서 correction을 적용하는 방식도 자동으로 정해집니다.</p>
+      <div class="eq">
+        $$R \leftarrow R\exp(\delta\theta),\qquad
+        v,p \leftarrow \text{group correction from }\delta\xi,
+        \qquad b_g,b_a \leftarrow b + \delta b$$
+      </div>
+      <div class="note">
+        InEKF를 구현하기 전에 left/right error convention부터 정해야 합니다.
+        convention이 바뀌면 measurement Jacobian, process Jacobian, correction 방향이 모두 같이 바뀌어야 합니다.
+      </div>
+
+      <h3>3. Nominal state 전파</h3>
+      <p>IMU input에서 bias를 제거한 뒤, nominal state는 nonlinear motion model로 직접 propagation합니다.</p>
+      <div class="eq">
+        $$\omega = \omega_{imu} - b_g,\qquad a = a_{imu} - b_a$$
+        $$R_{k+1} = R_k\exp(\omega\Delta t)$$
+        $$v_{k+1} = v_k + (R_k a + g)\Delta t$$
+        $$p_{k+1} = p_k + v_k\Delta t + \frac{1}{2}(R_k a + g)\Delta t^2$$
+      </div>
+      <p>회전 중 가속도 적분을 더 일관되게 처리할 때는 SO(3) Jacobian/Gamma 항을 사용할 수 있습니다.</p>
+      <div class="eq">
+        $$v_{k+1} = v_k + (R_k\Gamma_1(\phi)a + g)\Delta t$$
+        $$p_{k+1} = p_k + v_k\Delta t + R_k\Gamma_2(\phi)a\Delta t^2 + \frac{1}{2}g\Delta t^2$$
+        $$\phi = \omega\Delta t$$
+      </div>
+
+      <h3>4. Error covariance 전파</h3>
+      <p>
+        Kalman covariance는 nominal state 자체가 아니라 error state에 대해 propagation됩니다.
+        따라서 process Jacobian $\Phi$는 다음 관계를 근사해야 합니다.
+      </p>
+      <div class="eq">
+        $$\delta x_{k+1} \approx \Phi_k\delta x_k + G_kn_k$$
+        $$P_{k+1} = \Phi_kP_k\Phi_k^T + Q_d$$
+      </div>
+      <p>여기서 중요한 점은 $\Phi_k$가 일반 Euclidean state difference가 아니라, 위에서 정의한 right-invariant error의 변화량을 설명해야 한다는 것입니다.</p>
+
+      <h3>5. Finite difference와 analytic Jacobian</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>방법</th>
+              <th>$\Phi$ 계산</th>
+              <th>특징</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Finite difference</td>
+              <td>각 error basis $e_i$를 group에 perturbation하고, propagation 후 Lie-minus로 차이를 계산합니다.</td>
+              <td>구현이 직관적이지만 15D column마다 propagation이 필요해 느립니다.</td>
+            </tr>
+            <tr>
+              <td>Analytic Jacobian</td>
+              <td>IMU motion model과 right-error convention에서 closed-form error transition을 유도합니다.</td>
+              <td>동일한 error 정의를 유지하면서 runtime을 크게 줄일 수 있습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Finite difference의 개념은 다음과 같습니다.</p>
+      <div class="eq">
+        $$\Phi_{:,i} \approx
+        \frac{\operatorname{Log}\left(f(X\operatorname{Exp}(+\epsilon e_i))^{-1}_{\text{error}}\, f(X)\right)
+        -
+        \operatorname{Log}\left(f(X\operatorname{Exp}(-\epsilon e_i))^{-1}_{\text{error}}\, f(X)\right)}{2\epsilon}$$
+      </div>
+      <p>
+        실제 코드에서는 이 과정을 analytic 형태로 대체합니다. 핵심은 단순히 미분식을 빠르게 만드는 것이 아니라,
+        <strong>right perturbation으로 정의한 error와 같은 좌표계의 Jacobian을 써야 한다</strong>는 점입니다.
+      </p>
+
+      <h3>6. Measurement Jacobian</h3>
+      <p>Position measurement는 다음 residual을 사용합니다.</p>
+      <div class="eq">
+        $$r = z_p - \hat{p}$$
+      </div>
+      <p>하지만 $H$는 단순히 $[I,0,0]$로 끝나지 않습니다. Right perturbation에서 $p$가 어떻게 변하는지에 맞춰 measurement Jacobian을 정의해야 합니다.</p>
+      <div class="eq">
+        $$H = \frac{\partial h(X\operatorname{Exp}(\delta\xi))}{\partial \delta x}\bigg|_{\delta x=0}$$
+      </div>
+      <p>현재 analytic 구현에서는 right perturbation convention에 맞춰 position block이 rotation과 결합됩니다.</p>
+      <div class="eq">$$H_p[:,\delta p] \approx R$$</div>
+
+      <h3>7. Correction과 bias update</h3>
+      <p>Kalman update로 error를 얻은 뒤 correction은 group part와 bias part로 나눠 적용합니다.</p>
+      <div class="eq">
+        $$K = PH^T(HPH^T + R_m)^{-1},\qquad \delta x = Kr$$
+        $$X \leftarrow X\operatorname{Exp}(\delta\xi)$$
+        $$b_g \leftarrow b_g + \delta b_g,\qquad b_a \leftarrow b_a + \delta b_a$$
+      </div>
+      <div class="note">
+        Position measurement가 bias를 직접 측정하지는 않습니다. 그러나 $P$ 안의 cross-correlation 때문에 position residual이 attitude, velocity, bias correction으로 전달될 수 있습니다.
+        measurement가 없는 dead reckoning에서는 이 residual이 사라지므로 bias를 새로 추정하기 어렵습니다.
+      </div>
+
+      <h3>8. ESKF와 InEKF의 차이</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>항목</th>
+              <th>Rotation ESKF</th>
+              <th>InEKF</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>상태</td>
+              <td>$p, v, R$를 nominal state로 따로 보관</td>
+              <td>$R, v, p$를 Lie group matrix $X$로 묶음</td>
+            </tr>
+            <tr>
+              <td>오차</td>
+              <td>Small local error injected into nominal state</td>
+              <td>Invariant group error defined by left/right perturbation</td>
+            </tr>
+            <tr>
+              <td>Jacobian</td>
+              <td>일반 error-state dynamics 기준</td>
+              <td>Invariant error dynamics 기준</td>
+            </tr>
+            <tr>
+              <td>주요 특징</td>
+              <td>구현이 직관적이고 IMU ESKF 표준 구조와 가까움</td>
+              <td>Group geometry와 error propagation의 일관성을 더 강하게 유지</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>구현 확인 사항</h3>
+      <ul class="checklist">
+        <li>Jacobian을 작성하기 전에 left-invariant와 right-invariant 중 어떤 error를 쓸지 정합니다.</li>
+        <li>Plus, minus, process Jacobian, measurement Jacobian에 같은 convention을 사용합니다.</li>
+        <li>Euler angle을 더하지 않고 Lie group 위에서 nominal $X$를 전파합니다.</li>
+        <li>Bias는 additive update를 사용하고, residual의 영향은 covariance cross-correlation으로 전달합니다.</li>
+        <li>Analytic Jacobian은 finite-difference 결과와 비교한 뒤 실행시간 평가에 사용합니다.</li>
+      </ul>
+    </section>
+
+
+    <section id="datasets">
+      <h2>데이터 loader</h2>
+      <p>
+        각 데이터는 <code>CommonDataset</code> 형식으로 변환한 뒤 같은 runner와 filter registry를 사용합니다.
+        따라서 데이터셋마다 파일 형식은 달라도 filter 입장에서는 <code>timestamps</code>, <code>controls</code>, <code>ground_truth</code>, <code>position_measurements</code>를 같은 방식으로 받습니다.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>데이터</th>
+              <th>Loader</th>
+              <th>IMU 처리</th>
+              <th>사용할 수 있는 측정</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>EuRoC</td>
+              <td><code>datasets/euroc.py</code></td>
+              <td>IMU CSV의 gyro/accel을 <code>[ax, ay, az, gx, gy, gz]</code>로 변환</td>
+              <td>GT position pseudo-measurement, optional GT velocity/attitude</td>
+            </tr>
+            <tr>
+              <td>Pohang05</td>
+              <td><code>datasets/pohang.py</code></td>
+              <td><code>navigation/ahrs.txt</code>의 accel/gyro를 predict input으로 사용</td>
+              <td><code>baseline.txt</code> position, optional finite-difference velocity, baseline attitude</td>
+            </tr>
+            <tr>
+              <td>i2Nav street00</td>
+              <td><code>datasets/i2nav.py</code></td>
+              <td>IMU incremental dtheta/dvel을 gyro/accel로 변환</td>
+              <td>GNSS position or pseudo-GNSS, optional groundtruth velocity/attitude</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>예시 실행:</p>
+      <pre><code>python runners/run_filter.py --filter inekf --config config/pohang05.yaml
+python runners/run_filter.py --filter pf --config config/i2nav_street00.yaml --particles 5000</code></pre>
+    </section>
+
+    <section id="measurement">
+      <h2>측정 update</h2>
+      <p>Sparse update benchmark에서는 GT position을 pseudo-position measurement로 사용합니다.</p>
+      <div class="eq">$$z_p = p_{GT} + n_p$$</div>
+      <p>Kalman 계열 필터의 position residual은 다음과 같습니다.</p>
+      <div class="eq">$$r = z_p - \hat{p}, \qquad \delta x = K r$$</div>
+      <p>
+        Position measurement는 bias를 직접 측정하지 않지만, covariance cross-correlation을 통해 position residual이 velocity, attitude, bias correction으로 전달될 수 있습니다.
+        Dead reckoning에서는 measurement residual이 없으므로 bias correction 근거가 사라집니다.
+      </p>
+
+      <h3>속도와 자세 측정</h3>
+      <p>
+        기본 설정은 position-only update입니다. Pohang과 i2Nav처럼 velocity 또는 attitude 값이 함께 있는 데이터에서는
+        설정 파일에서 추가 measurement를 선택할 수 있습니다.
+      </p>
+      <pre><code>measurements:
+  use_position: true
+  use_velocity: true
+  use_attitude: true
+  velocity_measurement_noise_diag: [1.0e-2, 1.0e-2, 1.0e-2]
+  attitude_measurement_noise_diag: [7.6e-5, 7.6e-5, 7.6e-5]</code></pre>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Measurement</th>
+              <th>Kalman-style filters</th>
+              <th>Particle Filter</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Position</td>
+              <td>$r_p = z_p - \hat p$로 position residual update</td>
+              <td>$p(z_p\mid p_i)$ likelihood로 weight 갱신</td>
+            </tr>
+            <tr>
+              <td>Velocity</td>
+              <td>$r_v = z_v - \hat v$로 velocity residual update</td>
+              <td>$p(z_v\mid v_i)$ likelihood를 weight에 추가 곱</td>
+            </tr>
+            <tr>
+              <td>Attitude</td>
+              <td>RPY residual을 tangent/error-state update로 반영</td>
+              <td>$p(z_{rpy}\mid q_i)$ attitude likelihood를 weight에 추가 곱</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        먼저 position-only 결과를 비교하고, heading처럼 position만으로 충분히 관측되지 않는 상태를 확인할 때
+        velocity 또는 attitude measurement를 별도 실험으로 추가합니다.
+      </div>
+    </section>
+
+    <section id="outputs">
+      <h2>실행 명령과 출력 파일</h2>
+      <p>실험 실행 코드는 <code>runners/</code>에 있습니다.</p>
+      <pre><code>python runners/run_filter.py --filter inekf --config config/euroc.yaml
+python runners/run_all.py --config config/euroc.yaml --filters ekf ukf pf eskf inekf</code></pre>
+      <p>각 실행 결과는 다음 구조로 저장됩니다.</p>
+      <pre><code>outputs/&lt;dataset&gt;/&lt;sequence&gt;/&lt;filter&gt;/
+  estimate.csv
+  metrics.json
+  runtime.json
+  trajectory.png
+  error.png</code></pre>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Inertial State Estimation Benchmark · EKF / UKF / PF / ESKF / InEKF</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,7 @@
+dataset,our_position_rmse_m,reference_position_rmse_m,our_heading_rmse_deg,reference_heading_rmse_deg,our_runtime_s,reference_runtime_s,source
+EuRoC,0.0433,0.0433,7.379,7.386,7.17,0.33,0804_Labmeeting.pptx
+KAIST circle,0.1228,0.1229,13.818,13.814,11.12,0.49,0804_Labmeeting.pptx
+KAIST rotation,0.1781,0.1782,7.682,7.679,9.97,0.44,0804_Labmeeting.pptx
+UZH,0.0160,0.0158,0.844,0.841,3.68,0.16,0804_Labmeeting.pptx
+ADVIO,0.3069,0.4029,122.011,102.157,7.98,0.38,0804_Labmeeting.pptx
+Crazy4,0.0590,0.0590,11.524,11.524,20.79,0.93,0804_Labmeeting.pptx

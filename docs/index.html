@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inertial State Estimation Benchmark</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <p class="eyebrow">IMU 기반 상태추정 연구</p>
+      <h1>Inertial State Estimation Benchmark</h1>
+      <p class="lead">
+        같은 상태와 입력을 사용해 EKF, UKF, PF, ESKF, InEKF를 비교하고,
+        IMU-only dead reckoning과 위치 update, Small TCN 속도 추정을 실험한 코드입니다.
+      </p>
+      <nav class="top-nav" aria-label="문서 메뉴">
+        <a href="#overview">연구 내용</a>
+        <a href="#library">필터 구조</a>
+        <a href="#results">필터 결과</a>
+        <a href="#learned">학습 결과</a>
+        <a href="#run">실행 방법</a>
+        <a href="#limits">주의사항</a>
+        <a href="theory.html">이론과 구현</a>
+        <a href="KRISO_STATE_ESTIMATION_REPORT.pdf">보고서 PDF</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="overview">
+      <h2>연구 내용</h2>
+      <p>
+        2026년 6월 22일 이후 진행한 상태추정 연구를 한 저장소에서 실행할 수 있도록 정리했습니다.
+        IMU bias를 한 번 정해 고정했을 때의 dead reckoning, 위치 측정을 넣었을 때의 필터 차이,
+        회전량에 따른 InEKF 성능, 이전 비행으로 학습한 속도 측정을 차례로 확인했습니다.
+      </p>
+      <div class="grid three">
+        <article class="card">
+          <h3>공통 필터</h3>
+          <p>모든 필터에 같은 IMU, 초기값, 위치 측정과 평가식을 사용합니다.</p>
+        </article>
+        <article class="card">
+          <h3>IMU-only와 위치 update</h3>
+          <p>EuRoC에서 위치 측정 유무에 따른 위치와 roll, pitch, heading 오차를 비교합니다.</p>
+        </article>
+        <article class="card">
+          <h3>IMU 속도 학습</h3>
+          <p>Runs 3/4/9/10으로 학습하고 Run 5에서는 시작 상태와 IMU만 사용합니다.</p>
+        </article>
+      </div>
+      <div class="note">
+        InEKF만 사용한다고 IMU-only 위치 drift가 없어지지는 않았습니다. 현재 실험에서는 학습 속도를
+        InEKF에 넣었을 때 위치보다 자세 오차가 더 크게 개선됐습니다.
+      </div>
+    </section>
+
+    <section id="timeline">
+      <h2>진행 순서</h2>
+      <ol class="timeline">
+        <li><strong>상태 정의 통일</strong><span>R, v, p, gyro bias, accel bias와 15차원 오차상태를 정했습니다.</span></li>
+        <li><strong>필터 구조 통일</strong><span>EKF·UKF·PF·ESKF·InEKF의 predict, update, output 형식을 맞췄습니다.</span></li>
+        <li><strong>고정 bias IMU 적분</strong><span>시작 구간에서 bias를 한 번 계산한 뒤 전체 구간에 같은 값을 사용했습니다.</span></li>
+        <li><strong>위치 측정 비교</strong><span>EuRoC와 합성 데이터에서 모든 필터에 같은 위치 update를 넣었습니다.</span></li>
+        <li><strong>학습 속도 비교</strong><span>36,003-parameter Small TCN이 최근 2초의 IMU에서 속도를 예측합니다.</span></li>
+        <li><strong>코드 사용 구조 정리</strong><span>Python API, 명령행 실행기, test, 결과 파일과 사용 문서를 추가했습니다.</span></li>
+      </ol>
+    </section>
+
+    <section id="library">
+      <h2>필터 구조</h2>
+      <div class="grid">
+        <div class="card"><h3>IMU 입력</h3><pre><code>[ax, ay, az, gx, gy, gz]</code></pre></div>
+        <div class="card"><h3>Pose 출력</h3><pre><code>[px, py, pz, roll, pitch, yaw]</code></pre></div>
+      </div>
+      <p class="state-line">
+        <strong>상태:</strong> {R, v, p, b<sub>g</sub>, b<sub>a</sub>}
+        <span>→</span>
+        <strong>오차상태:</strong> [δθ, δv, δp, δb<sub>g</sub>, δb<sub>a</sub>] ∈ R<sup>15</sup>
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>필터</th><th>자세와 불확실성 표현</th><th>현재 용도</th></tr></thead>
+          <tbody>
+            <tr><td>EKF</td><td>Quaternion을 포함한 16차원 상태</td><td>기본 비교 방법</td></tr>
+            <tr><td>UKF</td><td>Quaternion과 15차원 local sigma points</td><td>비선형 전파 비교</td></tr>
+            <tr><td>PF</td><td>Quaternion particle과 위치 likelihood</td><td>비가우시안 비교</td></tr>
+            <tr><td>ESKF</td><td>Rotation matrix와 15차원 error injection</td><td>현재 발산 원인 확인 중</td></tr>
+            <tr><td>InEKF</td><td>SE₂(3) 상태와 invariant error</td><td>주요 비교 필터</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>from state_estimation import create_filter
+
+f = create_filter("inekf", mode="fused")
+f.predict([ax, ay, az, gx, gy, gz], dt)
+f.measurement_update([gps_x, gps_y, gps_z])
+pose = f.estimate_pose()</code></pre>
+      <p><a href="theory.html">상태, propagation, invariant error와 Jacobian 설명 보기 →</a></p>
+    </section>
+
+    <section id="results">
+      <h2>필터 결과</h2>
+      <h3>EuRoC V1_01_easy</h3>
+      <img class="result-figure" src="assets/results/euroc_imu_only_vs_fused.png" alt="EuRoC IMU-only와 위치 update 비교">
+      <div class="grid">
+        <article class="card metric-card"><p class="metric">1,130.12 m</p><p>InEKF IMU-only 위치 RMSE</p></article>
+        <article class="card metric-card"><p class="metric">0.114 m</p><p>InEKF + 2 Hz 위치 RMSE</p></article>
+      </div>
+      <p>
+        IMU-only에서는 EKF와 InEKF의 궤적이 거의 같았고 모두 발산했습니다. 2 Hz 위치 update에서는
+        EKF 0.110 m, InEKF 0.114 m였습니다. 실행시간은 InEKF 8.51초, EKF 15.90초였습니다.
+        위치 측정은 실제 GPS가 아니라 GT 위치에 noise를 추가해 만든 값입니다.
+      </p>
+
+      <h3>회전 운동 비교</h3>
+      <img class="result-figure" src="assets/results/motion_regime_summary.png" alt="회전량을 바꾼 합성 실험">
+      <p>
+        noise, bias, 실험 시간과 1 Hz 위치 update는 같게 두고 회전 운동만 세 단계로 바꿨습니다.
+        회전량이 커질수록 InEKF가 EKF보다 계속 좋아지지는 않았습니다. 이 관계는 실제 세 플랫폼에서
+        같은 위치 측정 조건을 적용해 더 확인해야 합니다.
+      </p>
+    </section>
+
+    <section id="learned">
+      <h2>학습을 이용한 IMU-only 개선</h2>
+      <div class="flow">
+        <div class="flow-step"><strong>학습</strong><br>Runs 3, 4, 9, 10<br>IMU → GT velocity</div>
+        <div class="flow-step"><strong>평가 분리</strong><br>Run 5는 학습에서 제외</div>
+        <div class="flow-step"><strong>속도 예측</strong><br>최근 2초 IMU → heading-frame velocity</div>
+        <div class="flow-step"><strong>InEKF 결합</strong><br>0.1초마다 velocity update</div>
+      </div>
+      <img class="result-figure" src="assets/results/cf231_learned_comparison.png" alt="CF231 학습 속도 결과">
+      <img class="result-figure" src="assets/results/cf231_fixed_vs_tcn_trajectory.png" alt="CF231 trajectory 비교">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>방법</th><th>위치 RMSE</th><th>SO(3) RMSE</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>고정 bias IMU 적분</td><td>522.2007 m</td><td>3.5535°</td><td>위치 발산</td></tr>
+            <tr><td>Small TCN 속도 적분</td><td><strong>2.3955 m</strong></td><td>3.5535°</td><td>가장 낮은 위치 RMSE</td></tr>
+            <tr><td>Small TCN + InEKF</td><td>2.6131 m</td><td><strong>1.7964°</strong></td><td>자세 오차 감소</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Run 5 bias는 처음 2.63초의 정지 구간에서 한 번 계산해 고정했습니다. Run 5를 평가할 때는
+        시작 상태와 IMU만 사용하지만, Small TCN 학습에는 다른 run의 GT velocity가 필요합니다.
+        따라서 학습 없는 순수 IMU 적분과는 구분해야 합니다.
+      </p>
+    </section>
+
+    <section id="run">
+      <h2>설치와 실행</h2>
+      <pre><code>git clone https://github.com/INHA-Artemis/inertial-state-estimation-benchmark.git
+cd inertial-state-estimation-benchmark
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[test,learned]"
+
+python examples/basic_filter_loop.py
+state-estimation-run-all --config config/euroc.yaml --filters ekf ukf pf inekf
+state-estimation-cf231-tcn --dataset data/cf231_leave_one_out/csv
+python -m pytest -q</code></pre>
+      <p>데이터 파일의 위치와 필요한 파일명은 저장소의 <code>DATASETS.md</code>에 적어 두었습니다.</p>
+    </section>
+
+    <section id="limits">
+      <h2>결과를 볼 때 주의할 점</h2>
+      <ul class="checklist">
+        <li><strong>Pohang:</strong> 기존 결과는 baseline 위치를 update와 평가에 같이 사용해 위치 오차가 작게 나올 수 있습니다.</li>
+        <li><strong>UrbanNav:</strong> 8월 4일 발표 수치만 남아 있고 당시 loader와 설정은 현재 저장소에 없습니다.</li>
+        <li><strong>ESKF:</strong> EuRoC에서 발산해 error injection과 좌표계를 다시 확인해야 합니다.</li>
+        <li><strong>플랫폼 비교:</strong> 이동로봇, 수상선, 드론에 같은 GNSS 조건을 적용한 실제 데이터 비교는 아직 남아 있습니다.</li>
+      </ul>
+      <p><a class="download" href="KRISO_STATE_ESTIMATION_REPORT.pdf">전체 보고서 PDF 보기</a></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>기반 코드: <a href="https://github.com/andyjaehun/State_Estimation">andyjaehun/State_Estimation</a> · 2026년 9월 정리</p>
+  </footer>
+</body>
+</html>

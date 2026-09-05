@@ -1,0 +1,13 @@
+dataset,platform,filter,position_rmse_m,position_max_error_m,position_final_error_m,heading_rmse_deg,runtime_s,source,note
+Pohang05,surface_vessel,EKF,0.0898,0.2957,0.0072,6.703,598.48,0804_Labmeeting.pptx,"baseline trajectory was used for both the position update and evaluation"
+Pohang05,surface_vessel,InEKF,0.0821,0.2847,0.0062,6.442,242.50,0804_Labmeeting.pptx,"baseline trajectory was used for both the position update and evaluation"
+Pohang05,surface_vessel,UKF,0.0902,0.2834,0.0072,6.821,1661.52,0804_Labmeeting.pptx,"baseline trajectory was used for both the position update and evaluation"
+Pohang05,surface_vessel,PF,0.1210,0.7935,0.0054,101.721,3260.82,0804_Labmeeting.pptx,"baseline trajectory was used for both the position update and evaluation"
+i2Nav street01,mobile_robot,EKF,2.3360,4.8991,1.6693,1.388,780.48,0804_Labmeeting.pptx,"value copied from the presentation"
+i2Nav street01,mobile_robot,InEKF,2.3330,4.9016,1.6547,1.058,295.50,0804_Labmeeting.pptx,"value copied from the presentation"
+i2Nav street01,mobile_robot,UKF,2.4110,4.8879,1.6418,2.698,2011.52,0804_Labmeeting.pptx,"value copied from the presentation"
+i2Nav street01,mobile_robot,PF,2.2900,4.7193,1.6628,17.552,4017.82,0804_Labmeeting.pptx,"value copied from the presentation"
+UrbanNav,ground_vehicle,EKF,0.3725,,,88.212,944.78,0804_Labmeeting.pptx,"the loader and settings used at the time are not in this repository"
+UrbanNav,ground_vehicle,InEKF,0.2766,,,96.975,336.34,0804_Labmeeting.pptx,"the loader and settings used at the time are not in this repository"
+UrbanNav,ground_vehicle,UKF,0.3534,,,94.419,1773.82,0804_Labmeeting.pptx,"the loader and settings used at the time are not in this repository"
+UrbanNav,ground_vehicle,PF,2.1210,,,117.165,4787.16,0804_Labmeeting.pptx,"the loader and settings used at the time are not in this repository"

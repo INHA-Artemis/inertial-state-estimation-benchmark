@@ -4,8 +4,7 @@
 
 **정리 범위:** 2026년 6월 22일 이후 수행 내용  
 **작성일:** 2026년 9월 5일  
-**대상:** KRISO 진도회의 사전 검토 자료  
-**코드 기반:** 연구팀 State Estimation 저장소와 CF231 학습 보정 실험
+**코드 기반:** State Estimation 저장소와 CF231 학습 보정 실험
 
 ---
 
@@ -80,7 +79,7 @@ ESKF는 EuRoC fused 실험에서 위치 RMSE 86.0 m, heading RMSE 102.5°로 비
 
 ### 3.1 결과를 정리한 기준
 
-현재 저장소의 코드로 다시 실행한 결과에는 설정 파일과 CSV 또는 JSON이 함께 있다. i2Nav, Pohang, UrbanNav와 외부 InEKF 비교 수치는 8월 4일 발표자료에서 가져왔다. 이 값은 당시 진행 내용을 확인하기 위한 자료이며 현재 코드의 최종 성능으로 사용하지 않았다. 데이터나 설정이 부족해 다시 실행하지 못한 조건도 결과 비교에서 제외했다.
+현재 저장소의 코드로 다시 실행한 결과에는 설정 파일과 CSV 또는 JSON이 함께 있다. i2Nav, Pohang, UrbanNav와 외부 InEKF 비교 수치는 당시 진행 내용을 확인하기 위한 자료이며 현재 코드의 최종 성능으로 사용하지 않았다. 데이터나 설정이 부족해 다시 실행하지 못한 조건도 결과 비교에서 제외했다.
 
 ### 3.2 데이터셋과 측정 조건
 
@@ -89,9 +88,9 @@ ESKF는 EuRoC fused 실험에서 위치 RMSE 86.0 m, heading RMSE 102.5°로 비
 | EuRoC V1_01_easy | MAV, 3D 운동 | O | GT 위치로 만든 2 Hz 측정 | 같은 입력에서 필터 비교 | 현재 코드로 실행 |
 | 회전 운동 합성 데이터 | 이동로봇/선박/드론 형태 | O | 1 Hz 위치 | 회전량만 바꾼 비교 | 현재 코드로 실행 |
 | CF231 Run 5 | 반복 8자 비행 | O | 학습 속도 | 고정 bias와 학습 방법 비교 | 현재 코드로 실행 |
-| i2Nav street01 | 이동로봇 | 별도 기록 없음 | F9P GNSS | 장시간 필터 비교 | 8월 4일 발표자료 |
-| Pohang05 | 무인수상선 | 별도 기록 없음 | baseline 위치 | 해양 데이터 비교 | 8월 4일 발표자료, 같은 위치를 평가에도 사용 |
-| UrbanNav | 지상차량 | 별도 기록 없음 | GNSS/위치 | 도심 GNSS 조건 | 8월 4일 발표자료, loader 없음 |
+| i2Nav street01 | 이동로봇 | 별도 기록 없음 | F9P GNSS | 장시간 필터 비교 | 8월 4일 실험 결과 |
+| Pohang05 | 무인수상선 | 별도 기록 없음 | baseline 위치 | 해양 데이터 비교 | 8월 4일 실험 결과, 같은 위치를 평가에도 사용 |
+| UrbanNav | 지상차량 | 별도 기록 없음 | GNSS/위치 | 도심 GNSS 조건 | 8월 4일 실험 결과, loader 없음 |
 
 EuRoC의 fused 조건은 실제 GPS가 아니라 GT 위치에 0.05 m 표준편차를 가정해 2 Hz로 넣은 pseudo-measurement다. 따라서 “GPS 성능”이 아니라 필터의 position-update 동작을 검증하는 통제 조건으로 해석해야 한다.
 
@@ -122,7 +121,7 @@ IMU-only에서 EKF와 InEKF의 위치 및 자세가 사실상 같은 이유는 �
 
 위치 업데이트는 모든 Kalman 계열 위치 발산을 크게 제한했다. 그러나 이 쉬운 EuRoC 시퀀스와 현재 파라미터에서는 EKF가 InEKF보다 위치 RMSE와 heading RMSE가 각각 3.7%, 5.2% 낮았다. 반대로 InEKF 실행시간은 EKF보다 약 46.5% 짧았다. 따라서 이 결과의 정직한 결론은 “InEKF가 정확도에서 우월하다”가 아니라 “공통 인터페이스에서 정상적으로 수렴하고 UKF와 유사한 정확도를 더 짧은 시간에 냈지만, EKF 대비 정확도 이점은 확인되지 않았다”이다.
 
-### 4.2 8월 4일 발표자료의 장시간 결과
+### 4.2 8월 4일 실험 결과
 
 ![기존 장시간 필터 비교](figures/historical_filter_comparison.png)
 
@@ -141,7 +140,7 @@ IMU-only에서 EKF와 InEKF의 위치 및 자세가 사실상 같은 이유는 �
 
 ### 4.3 외부 InEKF 구현과의 수치 비교
 
-8월 4일 발표자료에서는 [ghaggin/invariant-ekf](https://github.com/ghaggin/invariant-ekf)와 자체 InEKF를 EuRoC, KAIST, UZH, ADVIO, Crazy4에서 비교했다. EuRoC, KAIST, UZH, Crazy4의 위치와 heading 수치가 거의 같아 기본 predict와 update 계산이 reference 코드와 비슷하게 동작하는 것을 확인했다. ADVIO의 heading RMSE는 자체 코드 122.0°, reference 코드 102.2°로 둘 다 매우 컸다. 이 결과는 성공 사례가 아니라 좌표계 정의나 초기 yaw 문제를 확인해야 하는 사례로 보았다. 수치는 `reports/data/reference_comparison.csv`에 적어 두었다.
+[ghaggin/invariant-ekf](https://github.com/ghaggin/invariant-ekf)와 자체 InEKF를 EuRoC, KAIST, UZH, ADVIO, Crazy4에서 비교했다. EuRoC, KAIST, UZH, Crazy4의 위치와 heading 수치가 거의 같아 기본 predict와 update 계산이 reference 코드와 비슷하게 동작하는 것을 확인했다. ADVIO의 heading RMSE는 자체 코드 122.0°, reference 코드 102.2°로 둘 다 매우 컸다. 이 결과는 성공 사례가 아니라 좌표계 정의나 초기 yaw 문제를 확인해야 하는 사례로 보았다. 수치는 `reports/data/reference_comparison.csv`에 적어 두었다.
 
 ## 5. 회전 운동 증가 가설의 통제 검증
 
@@ -217,15 +216,6 @@ Yaw만 보면 fixed-bias와 loose TCN의 RMSE 0.83°가 TCN+InEKF의 1.15°보�
 3. CF231 한 플랫폼에서 학습한 TCN이 EuRoC, 수상선 또는 다른 IMU에 calibration 없이 일반화된다는 주장.
 4. 현재 ESKF 결과를 이론적 ESKF 성능으로 해석하는 것.
 5. pure IMU와 learned IMU-only를 동일한 의미의 “학습 없는 관성항법”으로 부르는 것. learned 방법은 runtime sensor는 IMU-only지만 사전 GT supervision을 사용한다.
-
-### 7.3 9월 진도회의 전 우선 실험
-
-1. **독립 update/reference 구성:** Pohang에서 RTK-GPS를 update, SLAM baseline을 reference로 분리한다.
-2. **플랫폼 3종 공통 프로토콜:** i2Nav, Pohang, EuRoC/드론에 동일 GNSS rate(예: 1 Hz), 동일 위치 noise 및 동일 길이의 평가 구간을 적용한다.
-3. **고회전 구간 평가:** 각속도 크기 `||omega||` 임계값으로 low/high-turn 구간을 나누고 filter별 roll/pitch/yaw RMSE, SO(3) RMSE, NIS/NEES를 계산한다.
-4. **ESKF 수정:** 좌표계, gravity 부호, quaternion/error injection 및 measurement Jacobian의 finite-difference test를 통과시킨 후 표에 복귀시킨다.
-5. **학습 일반화:** leave-one-run-out에서 leave-one-day/vehicle/sensor-out으로 강화하고, sensor-axis rotation·scale·bias augmentation을 적용한다.
-6. **학습 uncertainty:** TCN이 속도와 covariance를 함께 출력하게 하고 covariance calibration과 innovation gating을 검증한다.
 
 ## 8. 결론
 

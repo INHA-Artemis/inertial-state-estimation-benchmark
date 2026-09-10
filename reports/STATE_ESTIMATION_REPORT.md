@@ -683,15 +683,6 @@ reports/data/historical_full_sequence.csv
 reports/data/reference_comparison.csv
 ```
 
-## 11.5 보고서 asset 재생성
-
-```bash
-python reports/build_report_figures.py
-python reports/build_report_pdf.py
-```
-
-현재 저장소에서 최종 결론을 업데이트할 때는 **수치 CSV/JSON -> figure -> Markdown/PDF** 순서로 갱신하여 문서와 실행 결과가 어긋나지 않게 유지하는 것을 권장한다.
-
 ---
 
 # 12. 결론
@@ -720,19 +711,3 @@ python reports/build_report_pdf.py
 
 ---
 
-## Appendix A. 보고서 업데이트 체크리스트
-
-새로운 실험 결과를 이 보고서에 추가할 때는 아래 항목을 모두 확인한다.
-
-- [ ] train/test split이 명확한가?
-- [ ] 평가 중 GT가 filter input으로 들어가지 않는가?
-- [ ] pseudo-measurement를 실제 sensor measurement처럼 표현하지 않았는가?
-- [ ] measurement와 evaluation reference가 독립적인가?
-- [ ] config, dataset sequence, sample rate, update rate가 기록되어 있는가?
-- [ ] position뿐 아니라 attitude/heading metric을 함께 기록했는가?
-- [ ] runtime과 filter parameter를 기록했는가?
-- [ ] historical result와 reproducible result를 구분했는가?
-- [ ] negative result도 숨기지 않고 해석했는가?
-- [ ] `reports/data/`의 raw summary와 문서 수치가 일치하는가?
-
-이 체크리스트는 결과의 절대 수치보다 **재현성과 해석의 정직성**을 우선하기 위한 기준이다.

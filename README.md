@@ -266,4 +266,4 @@ CF231 학습 실험은 `summary.json`, `trajectories.npz`, `small_tcn.pt`, `traj
 | CF231 | Small TCN | **2.40 m** | SO(3) 3.55° | 속도를 직접 적분했을 때 위치 RMSE가 가장 낮음 |
 | CF231 | Small TCN + InEKF | 2.61 m | **SO(3) 1.80°** | Small TCN보다 위치는 약간 나빠지지만 자세가 개선됨 |
 
-전체 수치와 그래프는 [RESULTS.md](RESULTS.md), 각 실험의 설정은 [EXPERIMENTS.md](EXPERIMENTS.md), 연구 과정과 해석은 [보고서](reports/KRISO_STATE_ESTIMATION_REPORT.md)에서 확인할 수 있습니다.
+전체 수치와 그래프는 [RESULTS.md](RESULTS.md), 각 실험의 설정은 [EXPERIMENTS.md](EXPERIMENTS.md), 연구 과정과 해석은 [보고서](reports/STATE_ESTIMATION_REPORT.md)에서 확인할 수 있습니다.

@@ -4,7 +4,6 @@
 
 > **Repository:** `INHA-Artemis/inertial-state-estimation-benchmark`  
 > **Document status:** Final repository report  
-> **Last reviewed:** 2026-09-10  
 > **Primary evidence:** 현재 저장소의 실행기와 설정으로 다시 생성 가능한 EuRoC, 합성 회전량 실험, CF231 held-out Run 5 결과
 
 ---

@@ -294,13 +294,13 @@ EKF와 InEKF의 position/attitude 결과가 거의 동일하다. 이는 두 필�
 
 ---
 
-# 6. 회전량 증가 가설의 통제 실험
+# 6. 회전 및 3차원 운동 복잡도에 따른 Synthetic Motion-Regime Stress Test
 
 ## 6.1 실험 목적
 
 실제 mobile robot, USV, drone 데이터는 센서 품질, trajectory length, GNSS rate, 좌표계, 초기화가 모두 다르다. 데이터셋별 RMSE만 비교하면 “플랫폼 차이”와 “필터 구조 차이”를 분리할 수 없다.
 
-따라서 다음 조건은 고정하고 회전량만 증가시키는 synthetic experiment를 만들었다.
+따라서 센서 noise, bias, 실험 길이와 position update 조건을 동일하게 유지하고,mobile-like, vessel-like, drone-like 순으로 angular rate, roll/pitch motion,vertical motion을 단계적으로 증가시키는 synthetic stress test를 구성했다.
 
 - duration: 45 s
 - IMU rate: 50 Hz

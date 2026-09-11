@@ -54,4 +54,4 @@ Pohang 위치 결과는 `baseline.txt`를 필터 update와 오차 계산에 같�
 - `reports/data/historical_full_sequence.csv`: 8월 4일 발표자료 수치
 - `reports/data/reference_comparison.csv`: 자체 InEKF와 외부 구현 비교 수치
 
-실험 설정은 [EXPERIMENTS.md](EXPERIMENTS.md), 전체 연구 과정은 [보고서](reports/KRISO_STATE_ESTIMATION_REPORT.md)에 적어 두었습니다.
+실험 설정은 [EXPERIMENTS.md](EXPERIMENTS.md), 전체 연구 과정은 [보고서](reports/STATE_ESTIMATION_REPORT.md)에 적어 두었습니다.

@@ -175,14 +175,14 @@ state-estimation-run-all \
 
 이 설정은 실제 GPS가 아니라 EuRoC GT 위치에 0.05 m 표준편차의 noise를 넣은 값을 2 Hz로 사용합니다. 따라서 GPS 성능 검증이 아니라, 동일한 위치 update에서 필터 구조를 비교하는 실험입니다.
 
-### 8.3 회전량을 바꾼 합성 실험
+### 8.3 3D motion-regime stress test
 
 ```bash
 state-estimation-motion-benchmark \
   --config config/motion_regimes.yaml
 ```
 
-센서 noise, bias, 실험 길이와 위치 update 조건은 고정하고, mobile robot-like, surface vessel-like, drone-like 운동의 회전량만 다르게 둡니다.
+센서 noise, bias, 실험 길이와 위치 update 조건은 고정하고, mobile robot-like, surface vessel-like, drone-like 운동의 회전 및 운동 복잡도를 단계적으로 증가시킵니다.
 
 ### 8.4 i2Nav street00
 

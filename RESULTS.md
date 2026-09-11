@@ -21,7 +21,7 @@
 
 ![3D motion-regime stress test](reports/figures/motion_regime_summary.png)
 
-실험 길이, IMU noise, bias, 1 Hz 위치 update는 같게 두고 roll, pitch, yaw 운동만 다르게 설정했습니다. InEKF의 IMU-only heading RMSE는 mobile robot-like 0.366°, surface vessel-like 0.748°, drone-like 1.162°였습니다. 회전량이 커질수록 IMU-only heading 오차는 커졌지만, position update를 넣은 경우에 InEKF가 EKF보다 계속 좋아지는 경향은 보이지 않았습니다.
+실험 길이, IMU noise, bias, 1 Hz 위치 update 조건은 동일하게 유지하고, mobile robot-like, surface vessel-like, drone-like 순으로 angular rate, roll/pitch motion과 vertical motion을 단계적으로 증가시켰습니다. InEKF의 IMU-only heading RMSE는 mobile robot-like 0.366°, surface vessel-like 0.748°, drone-like 1.162°였습니다. 회전량이 커질수록 IMU-only heading 오차는 커졌지만, position update를 넣은 경우에 InEKF가 EKF보다 계속 좋아지는 경향은 보이지 않았습니다.
 
 따라서 현재 결과만으로는 “회전이 많으면 InEKF가 더 정확하다”고 말하기 어렵습니다. 다음 실험에서는 각속도가 큰 구간만 따로 나눠 heading과 SO(3) 오차, NIS/NEES를 확인할 필요가 있습니다.
 

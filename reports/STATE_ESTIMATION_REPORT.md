@@ -80,8 +80,6 @@
 
 ## 2.1 전체 파이프라인
 
-![Benchmark pipeline](figures/benchmark_pipeline.png)
-
 벤치마크는 dataset loader, 공통 filter API, measurement update, evaluator, result writer를 분리했다. 이 구조의 목적은 필터별로 서로 다른 데이터 전처리나 평가 코드를 사용해 생기는 비교 오류를 줄이는 것이다.
 
 주요 디렉터리는 다음과 같다.
@@ -279,8 +277,6 @@ state-estimation-run-all \
 | IMU + 2 Hz position | InEKF | 0.1140 | **0.042** | 4.367 | **0.783** | 6.426 | **8.51** |
 
 ![EuRoC comparison](figures/euroc_imu_only_vs_fused.png)
-
-![EuRoC runtime](figures/euroc_runtime.png)
 
 ## 5.3 해석
 

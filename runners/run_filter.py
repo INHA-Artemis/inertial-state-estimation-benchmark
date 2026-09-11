@@ -101,7 +101,12 @@ def run_filter(args: argparse.Namespace) -> dict:
     estimates = np.zeros((len(dataset.timestamps), 6), dtype=float)
     updates = 0
     with timer() as runtime:
-        for i, (control, dt) in enumerate(zip(dataset.controls, dataset.dt)):
+        # The estimator is initialized at timestamps[0]. Keep that state aligned
+        # with ground_truth[0], then propagate from the second timestamp onward.
+        estimates[0] = estimator.estimate_pose()
+        for i in range(1, len(dataset.timestamps)):
+            control = dataset.controls[i]
+            dt = dataset.dt[i]
             if dataset_config["mode"] in {"imu_only", "fused"}:
                 estimator.predict(control, float(dt))
             if dataset_config["mode"] in {"gnss_only", "fused"}:

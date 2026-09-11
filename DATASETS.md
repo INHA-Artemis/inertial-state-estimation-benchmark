@@ -45,7 +45,7 @@ data/
 
 ### i2Nav
 
-기본 설정은 `street00`입니다. 다른 sequence를 사용하려면 `config/i2nav_robot.yaml`의 `sequence`, `root`, 파일명을 함께 바꿉니다. F9P GNSS와 ground truth는 서로 다른 입력이므로, GNSS를 update에 사용하고 ground truth를 평가 기준으로 사용할 수 있습니다.
+기본 설정은 `street00`입니다. 다른 sequence를 사용하려면 `i2nav_street00.yaml`의 `sequence`, `root`, 파일명을 함께 바꿉니다. F9P GNSS와 ground truth는 서로 다른 입력이므로, GNSS를 update에 사용하고 ground truth를 평가 기준으로 사용할 수 있습니다.
 
 ### Pohang
 

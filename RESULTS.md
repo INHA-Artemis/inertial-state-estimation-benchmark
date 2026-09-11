@@ -17,9 +17,9 @@
 
 2 Hz 위치 update를 넣으면 위치 오차는 0.11 m 정도로 줄었습니다. 현재 설정에서는 EKF의 위치와 heading RMSE가 조금 낮았고, InEKF는 실행시간이 짧었습니다. 이때 사용한 위치 측정은 실제 GPS가 아니라 GT 위치에 0.05 m 표준편차의 noise를 넣은 값입니다.
 
-## 2. 회전량을 다르게 둔 합성 실험
+## 2. 3D motion-regime stress test
 
-![회전량 변화 실험](reports/figures/motion_regime_summary.png)
+![3D motion-regime stress test](reports/figures/motion_regime_summary.png)
 
 실험 길이, IMU noise, bias, 1 Hz 위치 update는 같게 두고 roll, pitch, yaw 운동만 다르게 설정했습니다. InEKF의 IMU-only heading RMSE는 mobile robot-like 0.366°, surface vessel-like 0.748°, drone-like 1.162°였습니다. 회전량이 커질수록 IMU-only heading 오차는 커졌지만, position update를 넣은 경우에 InEKF가 EKF보다 계속 좋아지는 경향은 보이지 않았습니다.
 
